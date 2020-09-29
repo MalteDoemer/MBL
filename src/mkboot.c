@@ -9,10 +9,12 @@
 #endif
 
 #if ARCH == x86_64
-extern char* _binary_bin_x86_64_stage1_bin_start;
+#define STAGE1_BINARY _binary_bin_x86_64_stage1_bin_start
 #else
 #error Unsupported Architecture
 #endif
+
+extern uint8_t* STAGE1_BINARY;
 
 void usage();
 void version();
@@ -24,17 +26,19 @@ const char* programm;
 
 int main(int argc, char* const* argv)
 {
-    struct option opts[6];
+    struct option opts[7];
 
     const char* disk;
 
     int opt, ind, ret;
 
     uint64_t lba;
+    uint64_t seek;
     uint32_t size;
     uint16_t seg, off;
 
     lba = 1;
+    seek = 0;
     size = 50;
     seg = 0;
     off = 0x800;
@@ -66,7 +70,12 @@ int main(int argc, char* const* argv)
     opts[4].flag = NULL;
     opts[4].val = 'a';
 
-    while ((opt = getopt_long(argc, argv, "hvl:s:a:", opts, &ind)) != -1) {
+    opts[5].name = "partition";
+    opts[5].has_arg = 1;
+    opts[5].flag = NULL;
+    opts[5].val = 'p';
+
+    while ((opt = getopt_long(argc, argv, "hvl:s:a:p:", opts, &ind)) != -1) {
         switch (opt) {
         case 'h':
             usage();
@@ -78,6 +87,10 @@ int main(int argc, char* const* argv)
 
         case 'l':
             lba = parse_int64();
+            break;
+
+        case 'p':
+            seek = parse_int64();
             break;
 
         case 's':
@@ -113,10 +126,39 @@ int main(int argc, char* const* argv)
         return 1;
     }
 
-    printf("LBA: %ld\n", lba);
-    printf("Size: %d\n", size);
-    printf("Buffer: %d:%d\n", seg, off);
+    FILE* fp;
+    uint8_t boot[512];
+    uint8_t data[512];
+    
 
+    memset(boot, 0, sizeof(boot));
+
+    fp = fopen(disk, "r+");
+    if (fp == NULL) {
+        fp = fopen(disk, "w+");
+    }
+
+    if (fp == NULL) {
+        printf("%s: Failed to create '%s'\n", programm, disk);
+        return 1;
+    }
+
+    fseek(fp, seek, SEEK_SET);
+    fread(data, 1, sizeof(data), fp);
+
+    memcpy(boot, (void*)&STAGE1_BINARY, 512);
+    
+    memcpy(boot + 3, data + 3, 87);
+
+    memcpy(boot + 426, &size, 2);
+    memcpy(boot + 428, &off, 2);
+    memcpy(boot + 430, &seg, 2);
+    memcpy(boot + 432, &lba, 8);
+
+    fseek(fp, seek, SEEK_SET);
+    fwrite(boot, 1, sizeof(boot), fp);
+
+    fclose(fp);
     return 0;
 }
 
@@ -130,6 +172,7 @@ void usage()
                              "   -v --version            Display version and exit\n"
                              "\n"
                              "   -l --lba <lba>          The lba address where to find the second stage. (default 1)\n"
+                             "   -p --partition <lba>    The lba of the partition start. Here stage1 gets installed. (default 0)\n"
                              "   -s --size <blocks>      The size in blocks (512-bytes) of the second stage. Must be between 1 and 50. (default 50)\n"
                              "   -a --address <seg:off>  The memory addres to load the second stage. (default 0x00:0x0800)\n"
                              "\n"

@@ -24,7 +24,7 @@ skip_fat:
     mov di, start
     mov sp, di
     mov ch, 1
-    rep stosw
+    rep movsw
     jmp 0:next
 
 next:
@@ -34,11 +34,9 @@ next:
     mov bx, 0xAA55
     clc
     int 0x13
-    jc .nolba
-    cmp bx, 0x55AA
-    je .load
+    jnc .load
 .nolba:
-    mov al, '1'
+    mov si, lba_err_msg
     jmp error
 .load:
     mov si, dap
@@ -62,15 +60,15 @@ next:
     jmp far word [dap.addr]
 
 .fail:
-    mov al, '2'
+    mov si, load_err_msg
 error:
+    push si
     mov ah, 0x0E
-    push ax
     mov si, err_msg
     call print
-    pop ax
-    int 0x10
-    inc si
+    pop si
+    call print
+    mov si, retry_msg
     call print
     xor ax, ax
     int 0x16
@@ -88,7 +86,8 @@ print:
 lba_err_msg: db 'LBA addressing not supported.', 0x00
 load_err_msg: db 'Could not load second stage bootloader.', 0x00
 
-err_msg: db 'Boot faild: ', 0x00, 0x0A, 0x0D, 'Press any key to restart...', 0x0A, 0x0D, 0x00
+err_msg: db 'Boot faild: ', 0x00
+retry_msg: db 0x0A, 0x0D, 'Press any key to restart...', 0x0A, 0x0D, 0x00
 
 times 416 - ($-$$) db 0
 id_string: db 'mbl  mbl'
