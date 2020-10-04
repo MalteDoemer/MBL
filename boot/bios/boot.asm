@@ -64,6 +64,10 @@ next:
     mov eax, dword [dap.lba_low]
     mov edx, dword [dap.lba_high]
 
+    ; we are passing the LBA on the stack
+    push eax
+    push edx
+
     ; load the kernel address
     mov di, KERNEL_ADDR
 
@@ -73,17 +77,13 @@ next:
     ; carry flag is set on error
     jc disk_err
 
-    ; check for our signature
-    mov eax, 'Yeet'
-    cmp dword [di + 3], eax
-    jne sig_fail
 
     ; we will pass the second stage a pointer to
-    ; the appropriate read function
+    ; the appropriate read function in bx
     mov bx, lba_read
 
     ; pass the boot drive in dl
-    mov dl, byte [boot_drive]  
+    mov dl, byte [boot_drive]
 
     jmp KERNEL_ADDR
 

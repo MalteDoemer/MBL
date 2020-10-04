@@ -28,6 +28,6 @@ SECTIONS {
 
     end_addr = .;
 
-    size = start_addr - end_addr;
+    size = end_addr - start_addr;
     sectors = size / 512;
 }

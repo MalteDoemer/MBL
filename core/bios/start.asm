@@ -1,27 +1,17 @@
+bits 16
+
 ; total size of core.bin in sectors
 [extern sectors]
 
 ; the segment where we start loading
 [extern load_segment]
 
+; entry point of C code
+[extern mbl_main]
+
 section .start
 
-%macro BREAK 1
-mov dx, %1
-call printhex
-jmp $
-%endmacro
-
 start:
-    ; make a jump to skip the signature
-    jmp short skip_sig
-    nop
-
-    ; the signature checked by stage 1
-    db 'Yeet'
-
-skip_sig:
-
     ; stage 1 passes the boot drive in dl
     mov byte [boot_drive], dl
 
@@ -29,75 +19,101 @@ skip_sig:
     ; to read from the disk
     mov word [read_func], bx
 
-    ; edx:eax contains the LBA from where this sector was loaded
+
+    ; the LBA is passed via the stack
+    pop edx
+    pop eax
+
+    ; save the LBA
     mov dword [lba_low], eax
     mov dword [lba_high], edx
 
-    
-    mov ah, 0x0E
-    mov al, 'F'
-    int 0x10
+    ; get the address where we are loading
+    mov bx, load_segment
+    mov es, bx
+    xor di, di
 
-    xor ax, ax
-    mov ds, ax
-    mov es, ax
-    
-    mov si, test_msg
-    call print
-    jmp $
-
-
-    ; get the amount of sectors to load
+    ; load the rest of core.bin
     mov cx, sectors
     dec cx
 
-    ; read_func loads at es:di
-    mov ax, load_segment
-    mov es, ax
-    xor di, di
-
 read_loop:
-    ; increment LBA by one
+
+    ; increment the LBA
     add eax, 1
     adc edx, 0
 
     ; read one sector from the boot drive
-    mov bx, [read_func]
-    call bx
-
+    call word [read_func]
 
     ; carry flag is set on error
-    jc disk_err
+    jc disk_error
 
-    ; increment by one sector
+    ; increment the pointer
     add di, 512
 
-    jnc .cont
+    ; if di overflowed we need to increment es
+    jnc continue
 
-    ; if add di, 512 produced a carry we need to adjust es
-    mov ax, es
-    add ax, 0x1000
-    mov es, ax
+    mov bx, es
+    add bx, 0x1000
+    mov es, bx
+    jmp continue
 
-.cont:
+continue:
     loop read_loop
 
-jmp $
-
-disk_err:
-    push word disk_err_msg
-error:
+switch_prot:
+    ; make sure es is zero
     xor ax, ax
+    mov es, ax
+
+    ; clear interrupts
+    cli
+
+    ; load the gdt 
+    lgdt [GDTR32]
+
+    ; enable protected mode
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax
+
+    ; reload the code segment
+    jmp 0x08:reload_seg
+reload_seg:
+    ; reload all data segments
+    mov ax, 0x10
     mov ds, ax
+    mov ss, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    ; push all arguments on the stack
+    mov ah, 0
+    mov al, byte [boot_drive]
+    push ax
+
+    mov eax, dword [lba_high]
+    push eax
+    
+    mov eax, dword [lba_low]
+    push eax
+    
+    jmp mbl_main
+
+disk_error:
+    push word disk_error_msg
+error:
     mov si, error_msg
     call print
     pop si
     call print
-    cli
 hang:
+    cli
     hlt
     jmp hang
-
 
 print:
     lodsb
@@ -110,14 +126,34 @@ print:
 .done:
     ret
 
-
-disk_err_msg: db 'disk fail', 0
-error_msg: db 'Fatal: '
-test_msg: db 'hello', 0
+disk_error_msg: db 'disk fail', 0
+error_msg: db 'Fatal: ', 0
 
 boot_drive: db 0
 read_func: dw 0
 lba_low: dd 0
 lba_high: dd 0
+
+align 8
+GDT32:
+    dq 0
+
+    dw 0xFFFF
+    dw 0
+    db 0
+    db 10011010b
+    db 11001111b
+    db 0
+
+    dw 0xFFFF
+    dw 0
+    db 0
+    db 10010010b
+    db 11001111b
+    db 0
+
+GDTR32:
+    dw $ - GDT32 - 1
+    dd GDT32
 
 times 512 - ($-$$) db 0
