@@ -1,26 +1,16 @@
 bits 16
 
-; total size of core.bin in sectors
-[extern sectors]
-
-; the segment where we start loading
-[extern load_segment]
-
-; entry point of C code
-[extern mbl_main]
+; ; entry point of C code
+; [extern mbl_main]
 
 section .start
 
 start:
-    ; stage 1 passes the boot drive in dl
+    ; the boot drive is passed via the stack
+    pop dx
     mov byte [boot_drive], dl
 
-    ; bx contains a function pointer
-    ; to read from the disk
-    mov word [read_func], bx
-
-
-    ; the LBA is passed via the stack
+    ; LBA is also passed via the stack
     pop edx
     pop eax
 
@@ -28,40 +18,12 @@ start:
     mov dword [lba_low], eax
     mov dword [lba_high], edx
 
-    ; get the address where we are loading
-    mov bx, load_segment
-    mov es, bx
-    xor di, di
+    mov ah, 0x0E
+    mov al, 'F'
+    int 0x10
 
-    ; load the rest of core.bin
-    mov cx, sectors
-    dec cx
+    jmp $
 
-read_loop:
-
-    ; increment the LBA
-    add eax, 1
-    adc edx, 0
-
-    ; read one sector from the boot drive
-    call word [read_func]
-
-    ; carry flag is set on error
-    jc disk_error
-
-    ; increment the pointer
-    add di, 512
-
-    ; if di overflowed we need to increment es
-    jnc continue
-
-    mov bx, es
-    add bx, 0x1000
-    mov es, bx
-    jmp continue
-
-continue:
-    loop read_loop
 
 switch_prot:
     ; make sure es is zero
@@ -90,30 +52,7 @@ reload_seg:
     mov fs, ax
     mov gs, ax
 
-    ; push all arguments on the stack
-    mov ah, 0
-    mov al, byte [boot_drive]
-    push ax
-
-    mov eax, dword [lba_high]
-    push eax
-    
-    mov eax, dword [lba_low]
-    push eax
-    
-    jmp mbl_main
-
-disk_error:
-    push word disk_error_msg
-error:
-    mov si, error_msg
-    call print
-    pop si
-    call print
-hang:
-    cli
-    hlt
-    jmp hang
+    jmp $
 
 print:
     lodsb
@@ -126,11 +65,8 @@ print:
 .done:
     ret
 
-disk_error_msg: db 'disk fail', 0
-error_msg: db 'Fatal: ', 0
 
 boot_drive: db 0
-read_func: dw 0
 lba_low: dd 0
 lba_high: dd 0
 

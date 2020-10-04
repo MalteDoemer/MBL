@@ -5,3 +5,4 @@
 test.asm
 .clang-format
 disk.img
+floppy.img
