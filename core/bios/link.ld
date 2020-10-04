@@ -27,6 +27,10 @@ SECTIONS {
     }
 
     end_addr = .;
+    stack_bottom = .;
+    . = . + 4096;
+    stack_top = .;
+    
 
     size = end_addr - start_addr;
     sectors = size / 512;

@@ -20,7 +20,7 @@ disk: mbr
 	dd if=core/bios/core.bin of=$(IMAGE) bs=512 seek=4096 conv=notrunc
 
 
-	qemu-system-x86_64.exe \
+	qemu-system-i386.exe \
 	-m 512 \
 	-drive format=raw,file='\\wsl$$\Ubuntu$(IMAGE)',index=0,if=ide \
 	-name "MBL" \

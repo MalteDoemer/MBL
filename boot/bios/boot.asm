@@ -145,6 +145,7 @@ read_loop:
     movzx dx, byte [boot_drive]
     push dx
 
+    ; jump into the second stage
     jmp KERNEL_ADDR
 
 no_geom:
@@ -245,7 +246,7 @@ chs_read:
     int 0x13
 
     popa
-    ret
+ret
 
 ; IN: edx:eax LBA;  es:di = buffer; si = dap
 ; OUT: carry flag set on error
@@ -271,12 +272,12 @@ lba_read:
     ; carry flag is set on error
     ; so we don't need to do this
     popa
-    ret
+ret
 
 
-read_fail_msg: db 'read fail', 0
-chs_err_msg: db 'invalid CHS', 0
-no_geom_msg: db 'no geom info', 0
+read_fail_msg: db 'read failure', 0
+chs_err_msg: db 'invalid CHS address', 0
+no_geom_msg: db 'no geometry info', 0
 error_msg:    db 'Fatal: ', 0
 
 ; DAP stores information where to load the second stage
