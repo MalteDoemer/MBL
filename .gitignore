@@ -1,8 +1,8 @@
 /.vscode
+/tests
 *.bin
 *.o
 *.d
-test.asm
 .clang-format
 disk.img
 floppy.img
