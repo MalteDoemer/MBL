@@ -22,8 +22,12 @@ SECTIONS {
 
     end_addr = .;
     stack_bottom = .;
-    . = . + 4096;
+    . = . + 0x1000;
     stack_top = .;
+
+    mmap = .;
+    . = . + 0x300;
+    mmap_buf_end = .;
     
 
     size = end_addr - start_addr;

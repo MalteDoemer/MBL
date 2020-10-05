@@ -4,7 +4,7 @@ LD=i686-elf-ld
 OBJCOPY=i686-elf-objcopy
 
 AS_FLAGS= -f elf32
-CFLAGS= -m32 -ffreestanding -fno-PIE -nostartfiles -nostdlib -std=c99 -Wno-packed-bitfield-compat -I $(INCLUDE)
+CFLAGS= -m32 -Wall -ffreestanding -fno-PIE -nostartfiles -nostdlib -std=c99 -Wno-packed-bitfield-compat -I $(INCLUDE)
 
 include $(TARGET)/make.config
 

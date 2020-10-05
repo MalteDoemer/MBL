@@ -64,5 +64,4 @@ size_t strlen(const char * s);
    If no '\0' terminator is found in that many characters, return MAXLEN.  */
 size_t strnlen(const char * s, size_t maxlen);
 
-
 #endif // #ifndef STRING_H

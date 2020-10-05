@@ -55,48 +55,48 @@ void tty_putc(char c)
     check_scroll();
 }
 
-void tty_puts(const char* str)
+void tty_puts(const char* s)
 {
-    while (*str) {
-        tty_putc(*str);
-        str++;
+    while (*s) {
+        tty_putc(*s);
+        s++;
     }
 }
 
-void tty_puthex(uint32_t n)
+void tty_puthex(uint64_t n)
 {
-    static const char* format = "0123456789ABCDEF";
-    tty_puts("0x");
+    tty_putc('0');
+    tty_putc('x');
 
-    for (int i = 28; i > -1; i-=4){
-        tty_putc(format[(n >> i) & 0xF]);
+    const char* lookup = "0123456789ABCDEF";
+
+    for (int i = 60; i > -1; i -= 4) {
+        tty_putc(lookup[(n >> i) & 0xF]);
     }
 }
 
-void tty_putdec(int n){
-    if (n == 0){
+void tty_putdec(int32_t n)
+{
+    if (n == 0) {
         tty_putc('0');
         return;
     }
 
-    if (n < 0){
+    if (n < 0) {
         tty_putc('-');
         n *= -1;
     }
 
-    char buf[16];
+    char buffer[20];
 
     int end = 0;
-
-    while (n != 0)
-    {
-        buf[end++] = '0' + (n % 10);
+    while (n != 0) {
+        buffer[end++] = '0' + n % 10;
         n /= 10;
     }
-    
-    while (end){
-        tty_putc(buf[end--]);
-    }
+
+    while (end > 0)
+        tty_putc(buffer[--end]);
 }
 
 void tty_copy(const char* data, size_t size)

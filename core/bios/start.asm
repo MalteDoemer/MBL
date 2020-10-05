@@ -30,8 +30,8 @@ prot_entry:
     cld
 
     ; pass a pointer to the boot info
-    mov eax, lba_low
-    push eax
+    push dword 0
+    push dword lba_low
 
     ; call the C entry point
     call mbl_main
