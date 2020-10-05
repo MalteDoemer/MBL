@@ -1,8 +1,10 @@
 export MAKE=@make --no-print-directory
+export TARGET=bios
 export IMAGE=$(abspath disk.img)
 export FLOPPY=$(abspath floppy.img)
 export INCLUDE=$(abspath include)
-export TARGET=bios
+
+QEMU=qemu-system-x86_64.exe
 
 
 .PYHONY: mbr fat clean disk floppy
@@ -20,9 +22,10 @@ disk: mbr
 	dd if=core/bios/core.bin of=$(IMAGE) bs=512 seek=4096 conv=notrunc
 
 
-	qemu-system-i386.exe \
+	$(QEMU) \
 	-m 512 \
 	-drive format=raw,file='\\wsl$$\Ubuntu$(IMAGE)',index=0,if=ide \
+	-vga std \
 	-name "MBL" \
 	-monitor stdio \
 
@@ -30,10 +33,11 @@ floppy: fat
 	dd if=boot/bios/boot.bin of=$(FLOPPY) bs=1 count=3 conv=notrunc
 	dd if=boot/bios/boot.bin of=$(FLOPPY) bs=1 count=422 seek=90 skip=90 conv=notrunc
 
-	dd if=core/bios/core.bin of=$(FLOPPY) bs=512 seek=1 conv=notrunc
+	dd if=core/bios/core.bin of=$(FLOPPY) bs=1 seek=512 conv=notrunc
 
-	qemu-system-x86_64.exe \
+	$(QEMU) \
 	-m 512 \
+	-vga std \
 	-drive format=raw,file='\\wsl$$\Ubuntu$(FLOPPY)',index=0,if=floppy \
 	-name "MBL" \
 	-monitor stdio \

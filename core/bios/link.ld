@@ -4,12 +4,6 @@ SECTIONS {
     . = 0x800;
     start_addr = .;
 
-    .start : {
-        *(.start)
-    }
-
-    . = 0xA000;
-
     load_segment = . / 16;
 
     .text : {
