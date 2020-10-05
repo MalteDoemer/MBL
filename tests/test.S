@@ -1,3 +1,6 @@
 .code16
 
-retl
+calll lable
+
+
+lable:
