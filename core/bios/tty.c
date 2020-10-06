@@ -1,4 +1,4 @@
-#include "bios/mbl.h"
+#include "mbl.h"
 
 static const uint32_t width = 80;
 static const uint32_t height = 25;

@@ -2,8 +2,8 @@ bits 32
 
 [extern prot_to_real]
 [extern real_to_prot]
-[extern mmap]
-[extern mmap_buf_end]
+[extern mmap_start]
+[extern mmap_end]
 
 
 ; uint32_t get_e820_map();
@@ -16,8 +16,8 @@ get_e820_map:
     push esi
 
 
-    mov edi, mmap
-    mov ecx, mmap_buf_end
+    mov edi, mmap_start
+    mov ecx, mmap_end
     sub ecx, edi
     shr ecx, 2
     xor eax, eax
@@ -29,7 +29,7 @@ get_e820_map:
     bits 16
 
     ; set di to our map
-    mov di, mmap
+    mov di, mmap_start
 
     ; ebx must be zero on start
     xor ebx, ebx
@@ -100,6 +100,10 @@ get_e820_map:
         ; we found a valid entry
         inc ebp
         add di, 24
+
+        ; check if we have enough space
+        cmp di, mmap_end
+        je .done
     .skip:
         ; if ebx = 0 we are done
         test ebx, ebx

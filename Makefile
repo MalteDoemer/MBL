@@ -4,7 +4,10 @@ export IMAGE=$(abspath disk.img)
 export FLOPPY=$(abspath floppy.img)
 export INCLUDE=$(abspath include)
 
-QEMU=qemu-system-x86_64.exe
+export DEFS=
+
+QEMU=qemu-system-i386.exe 
+#-S -gdb tcp::9000
 
 
 .PYHONY: mbr fat clean disk floppy

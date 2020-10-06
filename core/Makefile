@@ -3,8 +3,11 @@ CC=i686-elf-gcc
 LD=i686-elf-ld
 OBJCOPY=i686-elf-objcopy
 
-AS_FLAGS= -f elf32
-CFLAGS= -m32 -Wall -ffreestanding -fno-PIE -nostartfiles -nostdlib -std=c99 -Wno-packed-bitfield-compat -I $(INCLUDE)
+AS_FLAGS= -f elf32 -g
+CFLAGS= -ggdb -m32 -Wall -ffreestanding -fno-PIE -nostartfiles -nostdlib -std=c99 -Wno-packed-bitfield-compat -I $(INCLUDE)
+
+NASM_DEFS=$(patsubst %,-D %,$(DEFS))
+GCC_DEFS=$(patsubst %,-D %,$(DEFS))
 
 include $(TARGET)/make.config
 
@@ -19,10 +22,10 @@ $(TARGET)/core.o: $(OBJS)
 	$(LD) -T $(TARGET)/link.ld $(OBJS) -o $@
 
 %.o: %.asm
-	$(AS) -MD $(@:.o=.d) $(AS_FLAGS) $< -o $@
+	$(AS) $(NASM_DEFS) -MD $(@:.o=.d) $(AS_FLAGS) $< -o $@
 
 %.o: %.c
-	$(CC) -MD -c $(CFLAGS) $< -o $@
+	$(CC) $(GCC_DEFS) -MD -c $(CFLAGS) $< -o $@
 
 all: $(OBJS) $(TARGET)/core.o $(TARGET)/core.bin
 

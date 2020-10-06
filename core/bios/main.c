@@ -1,26 +1,23 @@
 
-#include "bios/mbl.h"
+#include "mbl.h"
 
 void mbl_main(boot_info_t* boot_info)
 {
     tty_init();
+    init_mmap();
 
-    uint32_t count = get_e820_map();
+    for (;;)
+        hlt();
+}
 
-    tty_puts("Count: ");
-    tty_putdec(count);
-    tty_putc('\n');
-    tty_puts("Base Address       | Length             | Type\n");
 
-    for (int i = 0; i < count; i++) {
-        tty_puthex(mmap[i].base);
-        tty_puts(" | ");
-        tty_puthex(mmap[i].size);
-        tty_puts(" | ");
-        tty_putdec(mmap[i].type);
-        tty_putc('\n');
-    }
 
+MBL_NO_RET void panic(const char* reason){
+    tty_set_color(0x1F);
+    tty_clear();
+    tty_puts("Fatal error: ");
+    tty_puts(reason);
+    
     for (;;)
         hlt();
 }
