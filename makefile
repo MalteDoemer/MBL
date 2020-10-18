@@ -25,13 +25,16 @@ format:
 
 run: all tools install
 	tools/mbl-install $(IMAGE)
-
 	qemu-system-x86_64.exe \
 	-drive format=raw,file='\\wsl$$\Ubuntu$(IMAGE)',if=ide \
 	-m 512 \
 	-d cpu_reset \
 	-name "MBL" \
 	-monitor stdio \
+
+# -drive format=raw,file='\\wsl$$\Ubuntu$(IMAGE)',if=ide
+#-blockdev driver=file,node-name=disk,filename='\\wsl$$\Ubuntu$(IMAGE)' -device ide-hd,drive=disk,physical_block_size=1024 \
+	
 
 clean:
 	$(MAKE) -C $(TARGET) clean

@@ -3,10 +3,17 @@ cpu 8086
 section .boot
 
 global start
+
 extern entry
+extern stage2_sectors
 
 
 start:
+    jmp short skipfat
+    nop
+    times 90 -($-$$) db 0
+
+skipfat:
     ; disable interrupts and clear direction flag
     cli
     cld
@@ -35,7 +42,10 @@ next:
     ; enable interrupts
     sti
 
-    mov ah, 0x0E
-    mov al, 'Y'
-    int 0x10
-    jmp $
+    ; save boot drive
+    mov byte [drive], dl
+
+
+
+section .bss
+    drive resb 1

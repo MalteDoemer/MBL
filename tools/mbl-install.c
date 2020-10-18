@@ -7,7 +7,7 @@
 #include <getopt.h>
 
 #define BYTES_PER_SECTOR 512
-#define LBA_OFFSET 0x1B6
+#define LBA_OFFSET 98
 #define DEFAULT_DIR "/usr/lib/mbl/"
 #define BIOS_BOOT_BIN "bios/boot.bin"
 #define BIOS_CORE_BIN "bios/core.bin"
