@@ -14,18 +14,19 @@ SECTIONS
         *(.text)
         *(rodata)
         . = ALIGN(512);
-    }
+    } = 0
 
     .data : {
         *(.data)
         . = ALIGN(512);
-    }
+    } = 0
     stage2_end = .;
 
     bss_start = .;
-    .bss ALIGN(512) : {
+    .bss : {
         *(.bss)
-    }
+        . = ALIGN(512);
+    } = 0
     bss_end = .;
 
 

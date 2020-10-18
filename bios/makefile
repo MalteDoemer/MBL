@@ -17,7 +17,7 @@ install:
 	sudo cp core.bin boot.bin $(DEST)
 
 clean:
-	rm -f $(OBJS) core.bin boot.bin core.o
+	rm -f $(OBJS) $(OBJS:.o=.d) core.bin boot.bin core.o
 
 boot.bin: core.o
 	$(OBJCOPY) -j .boot -O binary $< $@

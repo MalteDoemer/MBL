@@ -3,8 +3,13 @@ section .boot
 
 global start
 
+extern bss_start
+extern bss_end
 extern entry
 extern sect_cnt
+
+%define LBA_MODE 1
+%define CHS_MODE 0
 
 start:
     jmp short skipfat
@@ -42,6 +47,13 @@ skipfat:
     jmp 0:next
 
 next:
+    ; clear out bss section
+    mov di, bss_start
+    mov cx, bss_end
+    sub cx, di
+    mov al, 0
+    rep stosb
+
     ; enable interrupts
     sti
 
@@ -63,7 +75,8 @@ next:
     jz chs_mode
 
 lba_mode:
-    ; configure the DAP pointed to by si    
+    ; set the mode for later use
+    mov byte [si - 1], LBA_MODE
 
     ; set size and zero byte
     mov word [si], 0x1000
@@ -79,14 +92,21 @@ lba_mode:
     mov eax, dword [lba_high]
     mov dword [si + 12], eax
 
-    ; set segment to zero and offset to 0x800
-    mov eax, 0x800
+    ; load at 0x80:0x00
+    mov eax, 0x800000
     mov dword [si + 4], eax
 
     ; get the boot drive
     mov dl, byte [drive]
 
-    ; int 0x13 ah = 0x42 to read sectors from disk into memory
+    ; BIOS call "INT 0x13 Function 0x42" to read sectors from disk into memory
+    ;   Call with 
+    ;       ah = 0x42
+    ;	    dl = drive number
+    ;		ds:si = segment:offset of disk address packet
+    ;   Return:
+    ;	    ah = 0x0 on success; err code on failure
+
     mov ah, 0x42
     int 0x13
 
@@ -97,13 +117,119 @@ lba_mode:
     jmp entry
 
 chs_mode:
+    ; set the mode for later use
+    mov byte [si - 1], CHS_MODE
 
+    ; int 0x13 with ah = 0x08 to determine drive geometry
+    mov ah, 0x08
+    mov dl, byte [drive]
+    int 0x13
 
+    jc error
 
+    ; save number of heads
+    inc dh
+    mov byte [si + 2], dh
 
+    ; save number of sectors
+    mov al, cl
+    and al, 0x3F
+    mov byte [si + 3], al
 
+    ; store number of cylinder
+    movzx ax, cl
+    shl ax, 2
+    mov al, ch
+    mov word [si], ax
+
+    ; upper 32-bits must be zero
+    mov edx, dword [lba_high]
+    or edx, edx
+    jnz error
+
+    ; get the LBA
+    mov eax, dword [lba_low]
+
+    ; get number of sectors
+    movzx ebx, byte [si + 3]
+
+    ; divide by number of sectors
+    div ebx
+
+    ; save sector start
+    mov cl, dl
+    inc cl
+
+    ; get number of heads
+    movzx ebx, byte [si + 2]
+
+    ; divide by number of headss
+    xor dx, dx
+    div ebx
+
+    ; check if we need to many cylinders
+    cmp ax, word [si]
+    jae error
+
+    ; low bits of cylinder start
+    mov ch, al
+
+    ; high 2-bits of cylinder start
+    mov al, 0
+    shr ax, 2
+    or cl, al
+
+    ; set head start
+    mov dh, dl
+
+    ; get the drive back
+    mov dl, byte [drive]
+
+    ; set number of sectors to read
+    mov al, sect_cnt
+
+    ; load at 0x80:0x00
+    mov bx, 0x80
+    mov es, bx
+    xor bx, bx
+
+    ; BIOS call "INT 0x13 Function 0x2" to read sectors from disk into memory
+    ;   Call with
+    ;       ah = 0x2
+    ;       al = number of sectors
+    ;       ch = cylinder
+    ;       cl = sector (bits 6-7 are high bits of "cylinder")
+    ;       dh = head
+    ;       dl = drive (0x80 for hard disk, 0x0 for floppy disk)
+    ;       es:bx = segment:offset of buffer
+    ;   Return:
+    ;       ah = 0x0 on success; err code on failure
+
+    mov ah, 0x02
+    int 0x13
+    
+    jc error
+
+    jmp entry
+
+error:
+    mov ah, 0x0E
+    mov bx, 0x0001
+    mov si, error_msg
+print:
+    lodsb
+    test al, al
+    jz hang
+    int 0x10
+    jmp print
+hang:
+    cli
+    hlt
+    jmp hang
+
+error_msg: db 'Boot failed.', 0
 
 section .bss
-mode resb 1
+disk_mode resb 1
 disk_info resb 16
 drive resb 1
