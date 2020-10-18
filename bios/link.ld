@@ -7,6 +7,10 @@ SECTIONS
     }
     . = 0x7B8;
 
+    .part_table : {
+        . += 72;
+    } = 0
+
     . = 0x800;
 
     stage2_start = .;

@@ -110,8 +110,12 @@ lba_mode:
     mov ah, 0x42
     int 0x13
 
-    ; on error fall back to chs
-    jc chs_mode
+    ; carry flag should be set on error
+    jc read_error
+
+    ; check the number of sectors written
+    cmp word [si + 2], sect_cnt
+    jne read_error
 
     ; go on to the next stage
     jmp entry
@@ -125,7 +129,7 @@ chs_mode:
     mov dl, byte [drive]
     int 0x13
 
-    jc error
+    jc geom_error
 
     ; save number of heads
     inc dh
@@ -145,7 +149,7 @@ chs_mode:
     ; upper 32-bits must be zero
     mov edx, dword [lba_high]
     or edx, edx
-    jnz error
+    jnz chs_error
 
     ; get the LBA
     mov eax, dword [lba_low]
@@ -169,7 +173,7 @@ chs_mode:
 
     ; check if we need to many cylinders
     cmp ax, word [si]
-    jae error
+    jae chs_error
 
     ; low bits of cylinder start
     mov ch, al
@@ -208,26 +212,53 @@ chs_mode:
     mov ah, 0x02
     int 0x13
     
-    jc error
+    ; carry flag should be set on error
+    jc read_error
+
+    ; check the number of sectors written
+    cmp al, sect_cnt
+    jne read_error
 
     jmp entry
 
+geom_error:
+    push word geom_error_msg
+    jmp error
+
+chs_error:
+    mov si, chs_error_msg
+    push si
+    ; push word chs_error_msg
+    jmp error
+
+read_error: 
+    push word read_error_msg
+
 error:
-    mov ah, 0x0E
-    mov bx, 0x0001
     mov si, error_msg
-print:
-    lodsb
-    test al, al
-    jz hang
-    int 0x10
-    jmp print
+    call print
+    pop si
+    call print
 hang:
     cli
     hlt
     jmp hang
 
-error_msg: db 'Boot failed.', 0
+print:
+    lodsb
+    test al, al
+    jz .done
+    mov ah, 0x0E
+    int 0x10
+    jmp print
+.done:
+    ret
+
+
+error_msg: db 'Fatal error: ', 0
+read_error_msg: db 'disk read fail', 0
+geom_error_msg: db 'no disk info', 0
+chs_error_msg: db 'chs too large', 0
 
 section .bss
 disk_mode resb 1

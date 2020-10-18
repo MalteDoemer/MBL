@@ -55,6 +55,7 @@ int main(int argc, char* const* argv)
     char* name;
     uint8_t* mbr;
     uint8_t* core;
+    size_t core_size;
     FILE* boot_bin;
     FILE* core_bin;
     FILE* device;
@@ -92,7 +93,7 @@ int main(int argc, char* const* argv)
     }
 
     free(name);
-    fread(core, 1024, 64, core_bin);
+    core_size = fread(core, 1, 1024 * 64, core_bin);
     fclose(core_bin);
 
     device = fopen(dev_name, "r+");
@@ -104,11 +105,25 @@ int main(int argc, char* const* argv)
 
     memcpy((void*)(mbr + LBA_OFFSET), (void*)&start, 8);
 
-    fseek(device, 0, SEEK_SET);
-    fwrite(mbr, 1, 440, device);
+    if (fseek(device, 0, SEEK_SET) != 0) {
+        perror(dev_name);
+        return 1;
+    }
 
-    fseek(device, start * BYTES_PER_SECTOR, SEEK_SET);
-    fwrite(core, 1024, 64, device);
+    if (fwrite(mbr, 1, 440, device) != 440) {
+        perror(dev_name);
+        return 1;
+    }
+
+    if (fseek(device, start * BYTES_PER_SECTOR, SEEK_SET) != 0) {
+        perror(dev_name);
+        return 1;
+    }
+
+    if (fwrite(core, 1, core_size, device) != core_size) {
+        perror(dev_name);
+        return 1;
+    }
 
     free(mbr);
     free(core);
