@@ -2,15 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <getopt.h>
 
-#define PART_MBR 0
-#define PART_GPT 1
-
-#define FIRM_BIOS 0
-#define FIRM_UEFI 1
-
-#define DEFAULT_DIR "mbl/"
+#define BYTES_PER_SECTOR 512
+#define LBA_OFFSET 0x1B6
+#define DEFAULT_DIR "/usr/lib/mbl/"
+#define BIOS_BOOT_BIN "bios/boot.bin"
+#define BIOS_CORE_BIN "bios/core.bin"
 
 void usage();
 void version();
@@ -23,13 +23,11 @@ int main(int argc, char* const* argv)
     prog = argv[0];
 
     int opt;
-    char* device;
+    char* dev_name;
+    uint64_t start = 1;
+    char* files = DEFAULT_DIR;
 
-    char* dir = DEFAULT_DIR;
-    int part = PART_MBR;
-    int firm = FIRM_BIOS;
-
-    while ((opt = getopt(argc, argv, "hvp:b:d:")) != -1) {
+    while ((opt = getopt(argc, argv, "hvf:s:")) != -1) {
         switch (opt) {
         case 'h':
             usage();
@@ -37,24 +35,11 @@ int main(int argc, char* const* argv)
         case 'v':
             version();
             return 0;
-        case 'd':
-            dir = strdup(optarg);
+        case 's':
+            start = atoll(optarg);
             break;
-        case 'p':
-            if (strcmp("mbr", optarg) == 0)
-                part = PART_MBR;
-            else if (strcmp("gpt", optarg) == 0)
-                part = PART_GPT;
-            else
-                error_exit("%s: unknown parition schema: %s\n", prog, optarg);
-            break;
-        case 'b':
-            if (strcmp("bios", optarg) == 0)
-                firm = FIRM_BIOS;
-            else if (strcmp("uefi", optarg) == 0)
-                firm = FIRM_UEFI;
-            else
-                error_exit("%s: unknown firmware interface: %s\n", prog, optarg);
+        case 'f':
+            files = optarg;
             break;
         }
     }
@@ -62,16 +47,72 @@ int main(int argc, char* const* argv)
     if (optind == argc)
         error_exit("%s: missing reqired argument <device>\n", prog);
 
-    device = argv[optind++];
+    dev_name = argv[optind++];
 
     if (optind != argc)
         error_exit("%s: too many arguments\n", prog);
 
-    if (firm == FIRM_UEFI)
-        error_exit("%s: uefi not yet supported\n", prog);
+    char* name;
+    uint8_t* mbr;
+    uint8_t* core;
+    FILE* boot_bin;
+    FILE* core_bin;
+    FILE* device;
 
+    mbr = malloc(512);
+    core = malloc(64 * 1024);
 
-    
+    if (!mbr || !core) {
+        perror("error");
+        return 1;
+    }
+
+    name = malloc(strlen(files) + sizeof(BIOS_BOOT_BIN));
+    strncpy(name, files, strlen(files));
+    strcat(name, BIOS_BOOT_BIN);
+    boot_bin = fopen(name, "r");
+
+    if (!boot_bin) {
+        perror(name);
+        return 1;
+    }
+    free(name);
+
+    fread(mbr, 1, 440, boot_bin);
+    fclose(boot_bin);
+
+    name = malloc(strlen(files) + sizeof(BIOS_CORE_BIN));
+    strncpy(name, files, strlen(files));
+    strcat(name, BIOS_CORE_BIN);
+    core_bin = fopen(name, "r");
+
+    if (!core_bin) {
+        perror(name);
+        return 1;
+    }
+
+    free(name);
+    fread(core, 1024, 64, core_bin);
+    fclose(core_bin);
+
+    device = fopen(dev_name, "r+");
+
+    if (!device) {
+        perror(dev_name);
+        return 1;
+    }
+
+    memcpy((void*)(mbr + LBA_OFFSET), (void*)&start, 8);
+
+    fseek(device, 0, SEEK_SET);
+    fwrite(mbr, 1, 440, device);
+
+    fseek(device, start * BYTES_PER_SECTOR, SEEK_SET);
+    fwrite(core, 1024, 64, device);
+
+    free(mbr);
+    free(core);
+    fclose(device);
 
     return 0;
 }
@@ -84,9 +125,8 @@ void usage()
                              "-h             display help and exit\n"
                              "-v             display version and exit\n"
                              "\n"
-                             "-p mbr|gpt     select a partition scheme\n"
-                             "-b bios|uefi   select the firmware interface\n"
-                             "-d directory   set the directory where to find the images\n"
+                             "-s sector      set the starting sector of the second stage (default 1)\n"
+                             "-f directory   set the directory where to find the images (default /usr/lib/mbl)\n"
                              "\n";
     printf(msg, prog);
 }
