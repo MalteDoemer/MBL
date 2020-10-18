@@ -13,10 +13,12 @@ SECTIONS
     .text : {
         *(.text)
         *(rodata)
+        . = ALIGN(512);
     }
 
     .data : {
         *(.data)
+        . = ALIGN(512);
     }
     stage2_end = .;
 
@@ -27,6 +29,5 @@ SECTIONS
     bss_end = .;
 
 
-    stage2_size = stage2_end - stage2_start;
-    stage2_sectors = stage2_size / 512;
+    sect_cnt = (stage2_end - stage2_start) / 512;
 }
