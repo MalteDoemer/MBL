@@ -1,10 +1,16 @@
 SECTIONS 
 {
+    . = 0x600;
+
+    .boot : {
+        *(.boot)
+    }
+
     . = 0x800;
 
     .text : {
         *(.text)
-        *(.rodata)
+        *(rodata)
     }
 
     .data : {
@@ -12,7 +18,7 @@ SECTIONS
     }
 
     bss_start = .;
-    .bss : {
+    .bss ALIGN(512) : {
         *(.bss)
     }
     bss_end = .;

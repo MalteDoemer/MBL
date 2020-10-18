@@ -2,5 +2,6 @@
 *.bin
 *.o
 *.d
+tools/mbl-install
 .clang-format
 disk.img
